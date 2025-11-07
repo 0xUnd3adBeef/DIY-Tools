@@ -18,3 +18,28 @@ Mode                 LastWriteTime         Length Name
 -a----        07/11/2025     14:43          20319 browser_profiles_20251107_144319.zip
 -a----        07/11/2025     14:43        7265288 GetBrowserPasswords-v1.0.exe
 ```
+
+Unzip the archive, open "Login Data" in sqlite3
+
+```bash
+┌──(kali㉿kali)-[~/Cool Stuff]
+└─$ sqlite3 Login\ Data
+SQLite version 3.46.1 2024-08-13 09:16:08
+Enter ".help" for usage hints.
+sqlite> .tables
+breached                logins_edge_extended    stats                 
+insecure_credentials    meta                    sync_entities_metadata
+logins                  password_notes          sync_model_metadata   
+sqlite> SELECT * FROM meta;
+SELECT * FROM logins;
+SELECT * FROM sqlite_sequence;
+SELECT * FROM sync_entities_metadata;
+SELECT * FROM sync_model_metadata;
+SELECT * FROM insecure_credentials;
+SELECT * FROM password_notes;
+SELECT * FROM breached;
+SELECT * FROM logins_edge_extended;
+SELECT * FROM stats;
+
+[URLs, usernames and passwords are going to show here]
+```
