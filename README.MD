@@ -1,6 +1,11 @@
 ## Simple reverse shell (C)
 It's a simple reverse shell in C (duh), it uses winsock 2.2 and you have to set your IP and port in the dedicated variables in the code, i tried to document the code well in comments.
 
+## Simple listener (C)
+Simple listener made for the previous simple reverse shell, with custom commands you can define in the code\
+Set the listening port in the code, compile and enjoy :) 
+
+
 
 ## [Browser Credential Harvester (Python)](https://github.com/0xUnd3adBeef/DIY-Malware/releases/download/Windows_Executable/GetBrowserPasswords-v1.0.exe)
 Python tool that harvests Firefox, Edge, Chrome, Brave, Opera ( | GX ) and Vivaldi to put them in a password protected (this part still doesn't work) zip archive.
