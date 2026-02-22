@@ -52,7 +52,7 @@ Here's a short description for your tool:
 
 ---
 
-## [Privilege Escalation via SeDebugPrivilege (C)](https://github.com/yourusername/yourrepo)
+## [Privilege Escalation via SeDebugPrivilege (C)](https://github.com/0xUnd3adBeef/DIY-Tools/blob/main/InjectThreadSeDebug.c)
 
 C tool that enables SeDebugPrivilege, enumerates running processes, and injects shellcode into processes running as SYSTEM (S-1-5-18). The included shellcode executes `cmd.exe /c whoami /all > C:\temp\whoanew.txt` as a proof of concept.
 
