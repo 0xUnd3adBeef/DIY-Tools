@@ -151,3 +151,4 @@ Mode                 LastWriteTime         Length Name
 - `SeBackupAbuse.exe ls <directory>` - List files in a directory (append `\*`)
 - `SeBackupAbuse.exe cat <file>` - Display file contents
 - `SeBackupAbuse.exe cp <source> [destination]` - Copy file (defaults to current directory)
+- (maybe soon ill add the option to copy from registry)
