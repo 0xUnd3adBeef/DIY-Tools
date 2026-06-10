@@ -48,7 +48,6 @@ SELECT * FROM stats;
 
 [URLs, usernames and passwords are going to show here]
 ```
-Here's a short description for your tool:
 
 ---
 
